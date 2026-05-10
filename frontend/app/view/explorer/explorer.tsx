@@ -3,6 +3,8 @@
 
 import type { ViewComponentProps } from "@/app/block/blocktypes";
 import ClaudeColorSvg from "@/app/asset/claude-color.svg";
+import { ContextMenuModel } from "@/app/store/contextmenu";
+import { getApi } from "@/store/global";
 import clsx from "clsx";
 import { useAtomValue } from "jotai";
 import * as React from "react";
@@ -112,12 +114,46 @@ const TreeItem = React.memo(function TreeItem({
     const isLoading = node?.loading ?? false;
     const children = node?.children;
 
-    const handleClick = () => {
+    const handleClick = (e: React.MouseEvent) => {
+        if (e.metaKey || e.ctrlKey) {
+            getApi().openNativePath(filePath);
+            return;
+        }
         if (isDir) {
             model.toggleDirectory(filePath);
         } else {
             model.openFile(filePath);
         }
+    };
+
+    const handleDragStart = (e: React.DragEvent) => {
+        e.dataTransfer.setData("text/plain", filePath);
+        e.dataTransfer.effectAllowed = "copy";
+    };
+
+    const handleContextMenu = (e: React.MouseEvent) => {
+        const menuItems: ContextMenuItem[] = [];
+        if (isDir) {
+            menuItems.push({
+                label: "Open in Wave",
+                click: () => model.openFile(filePath),
+            });
+        } else {
+            menuItems.push({
+                label: "Open in Wave",
+                click: () => model.openFile(filePath),
+            });
+        }
+        menuItems.push({
+            label: "Open with Default App",
+            click: () => getApi().openNativePath(filePath),
+        });
+        menuItems.push({ type: "separator" });
+        menuItems.push({
+            label: "Copy Path",
+            click: () => navigator.clipboard.writeText(filePath),
+        });
+        ContextMenuModel.getInstance().showContextMenu(menuItems, e);
     };
 
     const fileName = file.name || filePath.split("/").pop() || "";
@@ -130,6 +166,9 @@ const TreeItem = React.memo(function TreeItem({
                 className="explorer-tree-item cursor-pointer"
                 style={{ paddingLeft: `${depth * 16 + 8}px` }}
                 onClick={handleClick}
+                onContextMenu={handleContextMenu}
+                draggable
+                onDragStart={handleDragStart}
             >
                 {isDir && (
                     <i
