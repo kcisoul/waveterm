@@ -4,6 +4,7 @@
 .explorer-container {
     display: flex;
     flex-direction: column;
+    width: 100%;
     height: 100%;
     background: var(--block-bg-color);
     color: var(--main-text-color);
@@ -77,6 +78,8 @@
 }
 
 .explorer-tree-name {
+    flex: 1;
+    min-width: 0;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
