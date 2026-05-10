@@ -1576,7 +1576,6 @@ func (ws *WshServer) BlockJobStatusCommand(ctx context.Context, blockId string) 
 }
 
 func (ws *WshServer) ClaudeSessionsListCommand(ctx context.Context) ([]*wshrpc.ClaudeSessionInfo, error) {
-	StartClaudeWatcher()
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
 		return nil, fmt.Errorf("error getting home dir: %w", err)
@@ -1660,9 +1659,6 @@ func (ws *WshServer) ClaudeSessionsListCommand(ctx context.Context) ([]*wshrpc.C
 		info.MsgCount++
 		if entry.Timestamp > info.LastTimestamp {
 			info.LastTimestamp = entry.Timestamp
-			if entry.Display != "" {
-				info.LastMsg = entry.Display
-			}
 		}
 	}
 

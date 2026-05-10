@@ -291,19 +291,26 @@ export class TermWrap {
         };
         const dropHandler = (e: DragEvent) => {
             e.preventDefault();
-            if (!e.dataTransfer || e.dataTransfer.files.length === 0) {
+            if (!e.dataTransfer) {
                 return;
             }
-            const paths: string[] = [];
-            for (let i = 0; i < e.dataTransfer.files.length; i++) {
-                const file = e.dataTransfer.files[i];
-                const filePath = getApi().getPathForFile(file);
-                if (filePath) {
-                    paths.push(quoteForPosixShell(filePath));
+            if (e.dataTransfer.files.length > 0) {
+                const paths: string[] = [];
+                for (let i = 0; i < e.dataTransfer.files.length; i++) {
+                    const file = e.dataTransfer.files[i];
+                    const filePath = getApi().getPathForFile(file);
+                    if (filePath) {
+                        paths.push(quoteForPosixShell(filePath));
+                    }
                 }
+                if (paths.length > 0) {
+                    this.terminal.paste(paths.join(" ") + " ");
+                }
+                return;
             }
-            if (paths.length > 0) {
-                this.terminal.paste(paths.join(" ") + " ");
+            const textData = e.dataTransfer.getData("text/plain");
+            if (textData) {
+                this.terminal.paste(quoteForPosixShell(textData) + " ");
             }
         };
         this.connectElem.addEventListener("dragover", dragoverHandler);

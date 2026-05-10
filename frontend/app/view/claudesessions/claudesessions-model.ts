@@ -5,11 +5,12 @@ import type { BlockNodeModel } from "@/app/block/blocktypes";
 import { createBlock, globalStore } from "@/app/store/global";
 import { RpcApi } from "@/app/store/wshclientapi";
 import { TabRpcClient } from "@/app/store/wshrpcutil";
-import { stringToBase64 } from "@/util/util";
-import { waveEventSubscribeSingle } from "@/app/store/wps";
-import { checkKeyPressed } from "@/util/keyutil";
+import { checkKeyPressed, keydownWrapper } from "@/util/keyutil";
 import * as jotai from "jotai";
 import { ClaudeSessionsView } from "./claudesessions";
+
+const PollIntervalMs = 5000;
+const MaxSessions = 50;
 
 export class ClaudeSessionsViewModel implements ViewModel {
     viewType: string;
@@ -30,8 +31,7 @@ export class ClaudeSessionsViewModel implements ViewModel {
     viewText: jotai.Atom<HeaderElem[]>;
 
     inputRef = { current: null } as React.RefObject<HTMLInputElement>;
-    private eventUnsub: () => void = null;
-    private handleVisibility: () => void = null;
+    private pollTimer: ReturnType<typeof setInterval> = null;
 
     constructor({ blockId, nodeModel }: ViewModelInitType) {
         this.viewType = "claudesessions";
@@ -52,7 +52,6 @@ export class ClaudeSessionsViewModel implements ViewModel {
                 (s) =>
                     s.projectname?.toLowerCase().includes(search) ||
                     s.firstmsg?.toLowerCase().includes(search) ||
-                    s.lastmsg?.toLowerCase().includes(search) ||
                     s.project?.toLowerCase().includes(search)
             );
         });
@@ -77,18 +76,7 @@ export class ClaudeSessionsViewModel implements ViewModel {
         });
 
         this.fetchSessions();
-
-        this.eventUnsub = waveEventSubscribeSingle({
-            eventType: "claude:sessions",
-            handler: () => this.fetchSessions(),
-        });
-
-        this.handleVisibility = () => {
-            if (document.visibilityState === "visible") {
-                this.fetchSessions();
-            }
-        };
-        document.addEventListener("visibilitychange", this.handleVisibility);
+        this.pollTimer = setInterval(() => this.fetchSessions(), PollIntervalMs);
     }
 
     async fetchSessions() {
@@ -106,27 +94,24 @@ export class ClaudeSessionsViewModel implements ViewModel {
 
     async openSession(session: ClaudeSessionInfo) {
         const cwd = session.project || session.cwd || "~";
-        const blockId = await createBlock({
+        const resumeCmd = `claude --resume "${session.sessionid}"`;
+        await createBlock({
             meta: {
                 view: "term",
                 controller: "shell",
                 "cmd:cwd": cwd,
+                "cmd:runonstart": true,
+                "cmd:runonce": resumeCmd,
             },
         });
-        const cmd = `claude --resume "${session.sessionid}"\n`;
-        setTimeout(() => {
-            RpcApi.ControllerInputCommand(TabRpcClient, {
-                blockid: blockId,
-                inputdata64: stringToBase64(cmd),
-            });
-        }, 500);
     }
 
     giveFocus(): boolean {
         if (this.inputRef.current) {
             this.inputRef.current.focus();
+            return true;
         }
-        return true;
+        return false;
     }
 
     keyDownHandler(e: WaveKeyboardEvent): boolean {
@@ -160,11 +145,9 @@ export class ClaudeSessionsViewModel implements ViewModel {
     }
 
     dispose() {
-        if (this.eventUnsub) {
-            this.eventUnsub();
-        }
-        if (this.handleVisibility) {
-            document.removeEventListener("visibilitychange", this.handleVisibility);
+        if (this.pollTimer) {
+            clearInterval(this.pollTimer);
+            this.pollTimer = null;
         }
     }
 }

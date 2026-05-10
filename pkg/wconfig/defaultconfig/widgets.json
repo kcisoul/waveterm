@@ -54,15 +54,24 @@
     "defwidget@claudesessions": {
         "display:order": 0,
         "icon": "messages",
-        "iconurl": "logos/claudecode-color.svg",
         "label": "claude",
-        "color": "#D97757",
+        "color": "#7c5aed",
         "description": "Browse and resume Claude Code sessions",
-        "layout:position": "left",
-        "layout:size": 2,
         "blockdef": {
             "meta": {
                 "view": "claudesessions"
+            }
+        }
+    },
+    "defwidget@explorer": {
+        "display:order": 1,
+        "icon": "folder-tree",
+        "label": "explorer",
+        "color": "#e8a838",
+        "description": "IDE-style file tree for Claude sessions",
+        "blockdef": {
+            "meta": {
+                "view": "explorer"
             }
         }
     }
