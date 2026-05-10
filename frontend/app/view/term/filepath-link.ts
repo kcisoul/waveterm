@@ -160,11 +160,7 @@ function unescapePath(path: string): string {
 }
 
 function getLineText(bufferLine: IBufferLine): string {
-    let text = "";
-    for (let i = 0; i < bufferLine.length; i++) {
-        text += bufferLine.getCell(i)?.getChars() || " ";
-    }
-    return text;
+    return bufferLine.translateToString(true);
 }
 
 async function openFilePath(filePath: string): Promise<void> {
