@@ -2,9 +2,16 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { Tooltip } from "@/app/element/tooltip";
+import { ObjectService } from "@/app/store/services";
 import { TabRpcClient } from "@/app/store/wshrpcutil";
 import { useWaveEnv, WaveEnv, WaveEnvSubset } from "@/app/waveenv/waveenv";
 import { shouldIncludeWidgetForWorkspace } from "@/app/workspace/widgetfilter";
+import {
+    getLayoutModelForStaticTab,
+    LayoutTreeActionType,
+    LayoutTreeInsertNodeAtIndexAction,
+    newLayoutNode,
+} from "@/layout/index";
 import { modalsModel } from "@/store/modalmodel";
 import { fireAndForget, isBlank, makeIconClass } from "@/util/util";
 import {
@@ -57,6 +64,23 @@ type WidgetPropsType = {
 
 async function handleWidgetSelect(widget: WidgetConfigType, env: WidgetsEnv) {
     const blockDef = widget.blockdef;
+    const layoutPosition = widget["layout:position"];
+    const layoutSize = widget["layout:size"];
+    if (layoutPosition && layoutSize) {
+        const layoutModel = getLayoutModelForStaticTab();
+        const rtOpts: RuntimeOpts = { termsize: { rows: 25, cols: 80 } };
+        const blockId = await ObjectService.CreateBlock(blockDef, rtOpts);
+        const indexArr = layoutPosition === "left" ? [0] : [Infinity];
+        const insertAction: LayoutTreeInsertNodeAtIndexAction = {
+            type: LayoutTreeActionType.InsertNodeAtIndex,
+            node: newLayoutNode(undefined, layoutSize, undefined, { blockId }),
+            indexArr,
+            magnified: false,
+            focused: true,
+        };
+        layoutModel.treeReducer(insertAction);
+        return;
+    }
     env.createBlock(blockDef, widget.magnified);
 }
 
@@ -86,7 +110,11 @@ const Widget = memo(({ widget, mode, env }: WidgetPropsType) => {
             divOnClick={() => handleWidgetSelect(widget, env)}
         >
             <div style={{ color: widget.color }}>
-                <i className={makeIconClass(widget.icon, true, { defaultIcon: "browser" })}></i>
+                {widget.iconurl ? (
+                    <img src={widget.iconurl} className="w-5 h-5" />
+                ) : (
+                    <i className={makeIconClass(widget.icon, true, { defaultIcon: "browser" })}></i>
+                )}
             </div>
             {mode === "normal" && !isBlank(widget.label) ? (
                 <div

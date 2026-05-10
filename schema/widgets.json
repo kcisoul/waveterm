@@ -194,6 +194,9 @@
         "icon": {
           "type": "string"
         },
+        "iconurl": {
+          "type": "string"
+        },
         "color": {
           "type": "string"
         },
@@ -211,6 +214,12 @@
         },
         "magnified": {
           "type": "boolean"
+        },
+        "layout:position": {
+          "type": "string"
+        },
+        "layout:size": {
+          "type": "integer"
         },
         "blockdef": {
           "$ref": "#/$defs/BlockDef"
