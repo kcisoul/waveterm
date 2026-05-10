@@ -1,0 +1,172 @@
+// Copyright 2026, Command Line Inc.
+// SPDX-License-Identifier: Apache-2.0
+
+import { getApi } from "@/store/global";
+import { PLATFORM, PlatformMacOS } from "@/util/platformutil";
+import { fireAndForget } from "@/util/util";
+import type { IBufferLine, ILink, ILinkProvider, Terminal } from "@xterm/xterm";
+
+// Quoted paths: "~/path with spaces/file" or '/path with spaces/file'
+const QuotedDoublePathRegex = /"((?:\/|~\/|\.\.?\/)(?:[^"\n]+))"(?::(\d+)(?::(\d+))?)?/g;
+const QuotedSinglePathRegex = /'((?:\/|~\/|\.\.?\/)(?:[^'\n]+))'(?::(\d+)(?::(\d+))?)?/g;
+
+// Unquoted paths: spaces allowed in non-final segments (before /), escaped spaces (\ ) allowed everywhere
+const UnquotedPathRegex =
+    /(?:\/|~\/|\.\.?\/)(?:(?:[\w.@~-]|\\[ ])+(?:[ ](?:[\w.@~-]|\\[ ])+)*\/)*(?:[\w.@~-]|\\[ ])+(?::(\d+)(?::(\d+))?)?/g;
+
+function isFalsePositive(match: string): boolean {
+    if (match.startsWith("//")) return true;
+    return false;
+}
+
+export type FilePathLinkCallbacks = {
+    onHover?: (uri: string | null, mouseX: number, mouseY: number) => void;
+    getCwd?: () => string | null;
+};
+
+export class FilePathLinkProvider implements ILinkProvider {
+    private callbacks: FilePathLinkCallbacks;
+
+    constructor(callbacks: FilePathLinkCallbacks) {
+        this.callbacks = callbacks;
+    }
+
+    provideLinks(lineNumber: number, callback: (links: ILink[] | undefined) => void): void {
+        const terminal = this._terminal;
+        if (!terminal) {
+            callback(undefined);
+            return;
+        }
+
+        const bufferLine = terminal.buffer.active.getLine(lineNumber - 1);
+        if (!bufferLine) {
+            callback(undefined);
+            return;
+        }
+
+        const lineText = getLineText(bufferLine);
+        const links: ILink[] = [];
+        const coveredRanges: { start: number; end: number }[] = [];
+
+        // 1) Scan quoted paths first (they can contain spaces freely)
+        this.scanQuotedPaths(lineText, lineNumber, links, coveredRanges);
+
+        // 2) Scan unquoted paths, skipping ranges already covered by quoted matches
+        this.scanUnquotedPaths(lineText, lineNumber, links, coveredRanges);
+
+        callback(links.length > 0 ? links : undefined);
+    }
+
+    private scanQuotedPaths(
+        lineText: string,
+        lineNumber: number,
+        links: ILink[],
+        coveredRanges: { start: number; end: number }[]
+    ): void {
+        for (const regex of [QuotedDoublePathRegex, QuotedSinglePathRegex]) {
+            regex.lastIndex = 0;
+            let m: RegExpExecArray | null;
+            while ((m = regex.exec(lineText)) !== null) {
+                const fullMatch = m[0];
+                const innerPath = m[1];
+                if (isFalsePositive(innerPath)) continue;
+
+                const pathOnly = innerPath.replace(/:\d+(?::\d+)?$/, "");
+                const startX = m.index;
+                const range = {
+                    start: { x: startX + 1, y: lineNumber },
+                    end: { x: startX + fullMatch.length, y: lineNumber },
+                };
+                coveredRanges.push({ start: startX, end: startX + fullMatch.length });
+
+                const resolvedPath = this.resolvePath(pathOnly);
+                links.push(this.makeLink(range, fullMatch, resolvedPath));
+            }
+        }
+    }
+
+    private scanUnquotedPaths(
+        lineText: string,
+        lineNumber: number,
+        links: ILink[],
+        coveredRanges: { start: number; end: number }[]
+    ): void {
+        UnquotedPathRegex.lastIndex = 0;
+        let m: RegExpExecArray | null;
+        while ((m = UnquotedPathRegex.exec(lineText)) !== null) {
+            const rawPath = m[0];
+            if (isFalsePositive(rawPath)) continue;
+
+            const startX = m.index;
+            const endX = startX + rawPath.length;
+
+            if (coveredRanges.some((r) => startX >= r.start && endX <= r.end)) continue;
+
+            const pathOnly = rawPath.replace(/:\d+(?::\d+)?$/, "");
+            const range = {
+                start: { x: startX + 1, y: lineNumber },
+                end: { x: endX, y: lineNumber },
+            };
+
+            const resolvedPath = this.resolvePath(unescapePath(pathOnly));
+            links.push(this.makeLink(range, rawPath, resolvedPath));
+        }
+    }
+
+    private makeLink(range: ILink["range"], text: string, resolvedPath: string): ILink {
+        return {
+            range,
+            text,
+            activate: (e: MouseEvent, _text: string) => {
+                e.preventDefault();
+                const shouldOpen = PLATFORM === PlatformMacOS ? e.metaKey : e.ctrlKey;
+                if (shouldOpen) {
+                    fireAndForget(() => openFilePath(resolvedPath));
+                }
+            },
+            hover: (e: MouseEvent, _text: string) => {
+                this.callbacks.onHover?.(resolvedPath, e.clientX, e.clientY);
+            },
+            leave: () => {
+                this.callbacks.onHover?.(null, 0, 0);
+            },
+        };
+    }
+
+    private _terminal: Terminal | null = null;
+
+    attach(terminal: Terminal): void {
+        this._terminal = terminal;
+    }
+
+    private resolvePath(rawPath: string): string {
+        if (rawPath.startsWith("~")) {
+            const home = getApi().getHomeDir();
+            return home + rawPath.slice(1);
+        }
+        if (rawPath.startsWith("/")) {
+            return rawPath;
+        }
+        const cwd = this.callbacks.getCwd?.();
+        if (cwd) {
+            return cwd + "/" + rawPath;
+        }
+        return rawPath;
+    }
+}
+
+function unescapePath(path: string): string {
+    return path.replace(/\\ /g, " ");
+}
+
+function getLineText(bufferLine: IBufferLine): string {
+    let text = "";
+    for (let i = 0; i < bufferLine.length; i++) {
+        text += bufferLine.getCell(i)?.getChars() || " ";
+    }
+    return text;
+}
+
+async function openFilePath(filePath: string): Promise<void> {
+    getApi().openNativePath(filePath);
+}
