@@ -54,6 +54,7 @@
     "defwidget@claudesessions": {
         "display:order": 0,
         "icon": "messages",
+        "iconurl": "logos/claudecode-color.svg",
         "label": "claude",
         "color": "#D97757",
         "description": "Browse and resume Claude Code sessions",

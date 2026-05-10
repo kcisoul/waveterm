@@ -315,6 +315,7 @@ type WidgetConfigType struct {
 	DisplayOrder  float64          `json:"display:order,omitempty"`
 	DisplayHidden bool             `json:"display:hidden,omitempty"`
 	Icon          string           `json:"icon,omitempty"`
+	IconUrl       string           `json:"iconurl,omitempty"`
 	Color         string           `json:"color,omitempty"`
 	Label         string           `json:"label,omitempty"`
 	Description   string           `json:"description,omitempty"`

@@ -2164,6 +2164,7 @@ declare global {
         "display:order"?: number;
         "display:hidden"?: boolean;
         icon?: string;
+        iconurl?: string;
         color?: string;
         label?: string;
         description?: string;

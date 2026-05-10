@@ -194,6 +194,9 @@
         "icon": {
           "type": "string"
         },
+        "iconurl": {
+          "type": "string"
+        },
         "color": {
           "type": "string"
         },

@@ -110,7 +110,11 @@ const Widget = memo(({ widget, mode, env }: WidgetPropsType) => {
             divOnClick={() => handleWidgetSelect(widget, env)}
         >
             <div style={{ color: widget.color }}>
-                <i className={makeIconClass(widget.icon, true, { defaultIcon: "browser" })}></i>
+                {widget.iconurl ? (
+                    <img src={widget.iconurl} className="w-5 h-5" />
+                ) : (
+                    <i className={makeIconClass(widget.icon, true, { defaultIcon: "browser" })}></i>
+                )}
             </div>
             {mode === "normal" && !isBlank(widget.label) ? (
                 <div
