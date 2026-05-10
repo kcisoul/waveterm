@@ -136,7 +136,11 @@ export class ExplorerViewModel implements ViewModel {
         if (!cwd) return;
 
         const currentTrackedId = globalStore.get(this.trackedBlockIdAtom);
-        if (currentTrackedId && currentTrackedId !== blockId) {
+        if (currentTrackedId === blockId) {
+            return;
+        }
+
+        if (currentTrackedId) {
             this.saveBlockState(currentTrackedId);
         }
 

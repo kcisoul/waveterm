@@ -35,6 +35,7 @@ const (
 	Event_BlockJobStatus      = "block:jobstatus"      // type: wshrpc.BlockJobStatusData
 	Event_Badge               = "badge"                // type: baseds.BadgeEvent
 	Event_BlockFocus          = "block:focus"           // type: string
+	Event_ClaudeSessions     = "claude:sessions"       // type: none
 )
 
 var AllEvents []string = []string{
@@ -58,6 +59,7 @@ var AllEvents []string = []string{
 	Event_BlockJobStatus,
 	Event_Badge,
 	Event_BlockFocus,
+	Event_ClaudeSessions,
 }
 
 type WaveEvent struct {
