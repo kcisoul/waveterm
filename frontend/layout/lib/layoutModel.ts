@@ -4,6 +4,8 @@
 import { FocusManager } from "@/app/store/focusManager";
 import { getSettingsKeyAtom } from "@/app/store/global";
 import { BlockService } from "@/app/store/services";
+import { RpcApi } from "@/app/store/wshclientapi";
+import { TabRpcClient } from "@/app/store/wshrpcutil";
 import * as WOS from "@/app/store/wos";
 import { atomWithThrottle, boundNumber, fireAndForget } from "@/util/util";
 import { Atom, atom, Getter, PrimitiveAtom, Setter } from "jotai";
@@ -1245,6 +1247,16 @@ export class LayoutModel {
         };
 
         this.treeReducer(action);
+        const blockId = layoutNode.data?.blockId;
+        if (blockId) {
+            fireAndForget(() =>
+                RpcApi.EventPublishCommand(TabRpcClient, {
+                    event: "block:focus",
+                    scopes: ["block:" + blockId],
+                    data: blockId,
+                })
+            );
+        }
     }
 
     focusFirstNode() {
