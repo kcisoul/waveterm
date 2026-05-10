@@ -27,6 +27,7 @@ declare global {
         | "block:jobstatus"
         | "badge"
         | "claude:sessions"
+        | "block:focus"
     ;
 
     type WaveEvent = {
@@ -55,7 +56,8 @@ declare global {
         { event: "waveai:modeconfig"; data?: AIModeConfigUpdate; } | 
         { event: "block:jobstatus"; data?: BlockJobStatusData; } | 
         { event: "badge"; data?: BadgeEvent; } | 
-        { event: "claude:sessions"; data?: null; }
+        { event: "claude:sessions"; data?: null; } | 
+        { event: "block:focus"; data?: string; }
     );
 
 }
