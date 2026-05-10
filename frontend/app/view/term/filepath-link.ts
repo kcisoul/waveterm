@@ -1,8 +1,9 @@
 // Copyright 2026, Command Line Inc.
 // SPDX-License-Identifier: Apache-2.0
 
+import { RpcApi } from "@/app/store/wshclientapi";
+import { TabRpcClient } from "@/app/store/wshrpcutil";
 import { getApi } from "@/store/global";
-import { PLATFORM, PlatformMacOS } from "@/util/platformutil";
 import { fireAndForget } from "@/util/util";
 import type { IBufferLine, ILink, ILinkProvider, Terminal } from "@xterm/xterm";
 
@@ -13,6 +14,8 @@ const QuotedSinglePathRegex = /'((?:\/|~\/|\.\.?\/)(?:[^'\n]+))'(?::(\d+)(?::(\d
 // Unquoted paths: spaces allowed in non-final segments (before /), escaped spaces (\ ) allowed everywhere
 const UnquotedPathRegex =
     /(?:\/|~\/|\.\.?\/)(?:(?:[\w.@~-]|\\[ ])+(?:[ ](?:[\w.@~-]|\\[ ])+)*\/)*(?:[\w.@~-]|\\[ ])+(?::(\d+)(?::(\d+))?)?/g;
+
+const ExistsCacheTTL = 30000;
 
 function isFalsePositive(match: string): boolean {
     if (match.startsWith("//")) return true;
@@ -26,6 +29,7 @@ export type FilePathLinkCallbacks = {
 
 export class FilePathLinkProvider implements ILinkProvider {
     private callbacks: FilePathLinkCallbacks;
+    private existsCache: Map<string, { exists: boolean; ts: number }> = new Map();
 
     constructor(callbacks: FilePathLinkCallbacks) {
         this.callbacks = callbacks;
@@ -45,22 +49,61 @@ export class FilePathLinkProvider implements ILinkProvider {
         }
 
         const lineText = getLineText(bufferLine);
-        const links: ILink[] = [];
+        const candidates: { range: ILink["range"]; text: string; resolvedPath: string }[] = [];
         const coveredRanges: { start: number; end: number }[] = [];
 
-        // 1) Scan quoted paths first (they can contain spaces freely)
-        this.scanQuotedPaths(lineText, lineNumber, links, coveredRanges);
+        this.collectQuotedPaths(lineText, lineNumber, candidates, coveredRanges);
+        this.collectUnquotedPaths(lineText, lineNumber, candidates, coveredRanges);
 
-        // 2) Scan unquoted paths, skipping ranges already covered by quoted matches
-        this.scanUnquotedPaths(lineText, lineNumber, links, coveredRanges);
+        if (candidates.length === 0) {
+            callback(undefined);
+            return;
+        }
 
-        callback(links.length > 0 ? links : undefined);
+        // split into cached-hit vs needs-check
+        const verified: typeof candidates = [];
+        const toCheck: typeof candidates = [];
+        for (const c of candidates) {
+            const cached = this.existsCache.get(c.resolvedPath);
+            if (cached && Date.now() - cached.ts < ExistsCacheTTL) {
+                if (cached.exists) verified.push(c);
+            } else {
+                toCheck.push(c);
+            }
+        }
+
+        if (toCheck.length === 0) {
+            const links = verified.map((c) => this.makeLink(c.range, c.text, c.resolvedPath));
+            callback(links.length > 0 ? links : undefined);
+            return;
+        }
+
+        // async check uncached paths
+        Promise.all(
+            toCheck.map(async (c) => {
+                try {
+                    const info = await RpcApi.RemoteFileInfoCommand(TabRpcClient, c.resolvedPath, { timeout: 2000 });
+                    const exists = !info.notfound;
+                    this.existsCache.set(c.resolvedPath, { exists, ts: Date.now() });
+                    return exists ? c : null;
+                } catch {
+                    this.existsCache.set(c.resolvedPath, { exists: false, ts: Date.now() });
+                    return null;
+                }
+            })
+        ).then((results) => {
+            for (const r of results) {
+                if (r) verified.push(r);
+            }
+            const links = verified.map((c) => this.makeLink(c.range, c.text, c.resolvedPath));
+            callback(links.length > 0 ? links : undefined);
+        });
     }
 
-    private scanQuotedPaths(
+    private collectQuotedPaths(
         lineText: string,
         lineNumber: number,
-        links: ILink[],
+        candidates: { range: ILink["range"]; text: string; resolvedPath: string }[],
         coveredRanges: { start: number; end: number }[]
     ): void {
         for (const regex of [QuotedDoublePathRegex, QuotedSinglePathRegex]) {
@@ -80,15 +123,15 @@ export class FilePathLinkProvider implements ILinkProvider {
                 coveredRanges.push({ start: startX, end: startX + fullMatch.length });
 
                 const resolvedPath = this.resolvePath(pathOnly);
-                links.push(this.makeLink(range, fullMatch, resolvedPath));
+                candidates.push({ range, text: fullMatch, resolvedPath });
             }
         }
     }
 
-    private scanUnquotedPaths(
+    private collectUnquotedPaths(
         lineText: string,
         lineNumber: number,
-        links: ILink[],
+        candidates: { range: ILink["range"]; text: string; resolvedPath: string }[],
         coveredRanges: { start: number; end: number }[]
     ): void {
         UnquotedPathRegex.lastIndex = 0;
@@ -109,7 +152,7 @@ export class FilePathLinkProvider implements ILinkProvider {
             };
 
             const resolvedPath = this.resolvePath(unescapePath(pathOnly));
-            links.push(this.makeLink(range, rawPath, resolvedPath));
+            candidates.push({ range, text: rawPath, resolvedPath });
         }
     }
 
@@ -117,12 +160,8 @@ export class FilePathLinkProvider implements ILinkProvider {
         return {
             range,
             text,
-            activate: (e: MouseEvent, _text: string) => {
-                e.preventDefault();
-                const shouldOpen = PLATFORM === PlatformMacOS ? e.metaKey : e.ctrlKey;
-                if (shouldOpen) {
-                    fireAndForget(() => openFilePath(resolvedPath));
-                }
+            activate: (_e: MouseEvent, _text: string) => {
+                fireAndForget(() => openFilePath(resolvedPath));
             },
             hover: (e: MouseEvent, _text: string) => {
                 this.callbacks.onHover?.(resolvedPath, e.clientX, e.clientY);
