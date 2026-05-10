@@ -50,5 +50,17 @@
                 "view": "processviewer"
             }
         }
+    },
+    "defwidget@claudesessions": {
+        "display:order": 0,
+        "icon": "messages",
+        "label": "claude",
+        "color": "#7c5aed",
+        "description": "Browse and resume Claude Code sessions",
+        "blockdef": {
+            "meta": {
+                "view": "claudesessions"
+            }
+        }
     }
 }

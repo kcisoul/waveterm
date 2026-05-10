@@ -1574,3 +1574,111 @@ func (ws *WshServer) JobControllerDetachJobCommand(ctx context.Context, jobId st
 func (ws *WshServer) BlockJobStatusCommand(ctx context.Context, blockId string) (*wshrpc.BlockJobStatusData, error) {
 	return jobcontroller.GetBlockJobStatus(ctx, blockId)
 }
+
+func (ws *WshServer) ClaudeSessionsListCommand(ctx context.Context) ([]*wshrpc.ClaudeSessionInfo, error) {
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		return nil, fmt.Errorf("error getting home dir: %w", err)
+	}
+	claudeDir := filepath.Join(homeDir, ".claude")
+	historyFile := filepath.Join(claudeDir, "history.jsonl")
+	sessionsDir := filepath.Join(claudeDir, "sessions")
+
+	activeSessions := make(map[string]int) // sessionId -> pid
+	sessionEntries, err := os.ReadDir(sessionsDir)
+	if err == nil {
+		for _, entry := range sessionEntries {
+			if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".json") {
+				continue
+			}
+			data, err := os.ReadFile(filepath.Join(sessionsDir, entry.Name()))
+			if err != nil {
+				continue
+			}
+			var sessionMeta struct {
+				Pid       int    `json:"pid"`
+				SessionId string `json:"sessionId"`
+			}
+			if err := json.Unmarshal(data, &sessionMeta); err != nil {
+				continue
+			}
+			if sessionMeta.SessionId != "" && sessionMeta.Pid > 0 {
+				// check if pid is actually running
+				proc, err := os.FindProcess(sessionMeta.Pid)
+				if err == nil && proc != nil {
+					if err := proc.Signal(os.Signal(nil)); err == nil {
+						activeSessions[sessionMeta.SessionId] = sessionMeta.Pid
+					}
+				}
+			}
+		}
+	}
+
+	historyData, err := os.ReadFile(historyFile)
+	if err != nil {
+		return nil, fmt.Errorf("error reading claude history: %w", err)
+	}
+
+	type historyEntry struct {
+		Display   string `json:"display"`
+		Project   string `json:"project"`
+		SessionId string `json:"sessionId"`
+		Timestamp int64  `json:"timestamp"`
+	}
+
+	sessionMap := make(map[string]*wshrpc.ClaudeSessionInfo)
+	lines := strings.Split(string(historyData), "\n")
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if line == "" {
+			continue
+		}
+		var entry historyEntry
+		if err := json.Unmarshal([]byte(line), &entry); err != nil {
+			continue
+		}
+		if entry.SessionId == "" {
+			continue
+		}
+		info, ok := sessionMap[entry.SessionId]
+		if !ok {
+			projectName := ""
+			if entry.Project != "" {
+				parts := strings.Split(entry.Project, "/")
+				projectName = parts[len(parts)-1]
+			}
+			info = &wshrpc.ClaudeSessionInfo{
+				SessionId:   entry.SessionId,
+				Project:     entry.Project,
+				ProjectName: projectName,
+				Cwd:         entry.Project,
+				FirstMsg:    entry.Display,
+			}
+			sessionMap[entry.SessionId] = info
+		}
+		info.MsgCount++
+		if entry.Timestamp > info.LastTimestamp {
+			info.LastTimestamp = entry.Timestamp
+		}
+	}
+
+	for sid, pid := range activeSessions {
+		if info, ok := sessionMap[sid]; ok {
+			info.IsActive = true
+			info.ActivePid = pid
+		}
+	}
+
+	result := make([]*wshrpc.ClaudeSessionInfo, 0, len(sessionMap))
+	for _, info := range sessionMap {
+		result = append(result, info)
+	}
+	sort.Slice(result, func(i, j int) bool {
+		return result[i].LastTimestamp > result[j].LastTimestamp
+	})
+
+	if len(result) > 50 {
+		result = result[:50]
+	}
+	return result, nil
+}
