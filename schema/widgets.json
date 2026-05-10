@@ -212,6 +212,12 @@
         "magnified": {
           "type": "boolean"
         },
+        "layout:position": {
+          "type": "string"
+        },
+        "layout:size": {
+          "type": "integer"
+        },
         "blockdef": {
           "$ref": "#/$defs/BlockDef"
         }

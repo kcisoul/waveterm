@@ -319,8 +319,10 @@ type WidgetConfigType struct {
 	Label         string           `json:"label,omitempty"`
 	Description   string           `json:"description,omitempty"`
 	Workspaces    []string         `json:"workspaces,omitempty"`
-	Magnified     bool             `json:"magnified,omitempty"`
-	BlockDef      waveobj.BlockDef `json:"blockdef"`
+	Magnified      bool             `json:"magnified,omitempty"`
+	LayoutPosition string           `json:"layout:position,omitempty"`
+	LayoutSize     int              `json:"layout:size,omitempty"`
+	BlockDef       waveobj.BlockDef `json:"blockdef"`
 }
 
 type BackgroundConfigType struct {

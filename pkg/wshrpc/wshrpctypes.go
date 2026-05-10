@@ -145,6 +145,9 @@ type WshRpcInterface interface {
 	SetSecretsCommand(ctx context.Context, secrets map[string]*string) error
 	GetSecretsLinuxStorageBackendCommand(ctx context.Context) (string, error)
 
+	// claude sessions
+	ClaudeSessionsListCommand(ctx context.Context) ([]*ClaudeSessionInfo, error)
+
 	WorkspaceListCommand(ctx context.Context) ([]WorkspaceInfoData, error)
 	GetUpdateChannelCommand(ctx context.Context) (string, error)
 
@@ -924,4 +927,17 @@ type CommandRemoteProcessListData struct {
 type CommandRemoteProcessSignalData struct {
 	Pid    int32  `json:"pid"`
 	Signal string `json:"signal"`
+}
+
+type ClaudeSessionInfo struct {
+	SessionId     string `json:"sessionid"`
+	Project       string `json:"project"`
+	ProjectName   string `json:"projectname"`
+	Cwd           string `json:"cwd"`
+	FirstMsg      string `json:"firstmsg"`
+	LastMsg       string `json:"lastmsg"`
+	LastTimestamp  int64  `json:"lasttimestamp"`
+	MsgCount      int    `json:"msgcount"`
+	IsActive      bool   `json:"isactive"`
+	ActivePid     int    `json:"activepid,omitempty"`
 }

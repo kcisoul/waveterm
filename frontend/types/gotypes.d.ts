@@ -211,6 +211,20 @@ declare global {
         secretbindingscomplete: boolean;
     };
 
+    // wshrpc.ClaudeSessionInfo
+    type ClaudeSessionInfo = {
+        sessionid: string;
+        project: string;
+        projectname: string;
+        cwd: string;
+        firstmsg: string;
+        lastmsg: string;
+        lasttimestamp: number;
+        msgcount: number;
+        isactive: boolean;
+        activepid?: number;
+    };
+
     // waveobj.Client
     type Client = WaveObj & {
         windowids: string[];
@@ -1589,6 +1603,7 @@ declare global {
         "debug:panictype"?: string;
         "block:view"?: string;
         "block:controller"?: string;
+        "block:subblock"?: boolean;
         "ai:backendtype"?: string;
         "ai:local"?: boolean;
         "wsh:cmd"?: string;
@@ -2154,6 +2169,8 @@ declare global {
         description?: string;
         workspaces?: string[];
         magnified?: boolean;
+        "layout:position"?: string;
+        "layout:size"?: number;
         blockdef: BlockDef;
     };
 
