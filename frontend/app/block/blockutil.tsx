@@ -48,6 +48,9 @@ export function blockViewToIcon(view: string): string {
     if (view == "claudesessions") {
         return "messages";
     }
+    if (view == "explorer") {
+        return "folder-tree";
+    }
     return "square";
 }
 
@@ -78,6 +81,9 @@ export function blockViewToName(view: string): string {
     }
     if (view == "claudesessions") {
         return "Claude Sessions";
+    }
+    if (view == "explorer") {
+        return "Explorer";
     }
     return view;
 }
