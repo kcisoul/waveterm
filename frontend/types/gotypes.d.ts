@@ -218,6 +218,7 @@ declare global {
         projectname: string;
         cwd: string;
         firstmsg: string;
+        lastmsg: string;
         lasttimestamp: number;
         msgcount: number;
         isactive: boolean;

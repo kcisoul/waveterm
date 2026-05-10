@@ -935,6 +935,7 @@ type ClaudeSessionInfo struct {
 	ProjectName   string `json:"projectname"`
 	Cwd           string `json:"cwd"`
 	FirstMsg      string `json:"firstmsg"`
+	LastMsg       string `json:"lastmsg"`
 	LastTimestamp  int64  `json:"lasttimestamp"`
 	MsgCount      int    `json:"msgcount"`
 	IsActive      bool   `json:"isactive"`

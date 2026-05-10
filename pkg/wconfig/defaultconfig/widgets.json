@@ -55,23 +55,13 @@
         "display:order": 0,
         "icon": "messages",
         "label": "claude",
-        "color": "#7c5aed",
+        "color": "#D97757",
         "description": "Browse and resume Claude Code sessions",
+        "layout:position": "left",
+        "layout:size": 2,
         "blockdef": {
             "meta": {
                 "view": "claudesessions"
-            }
-        }
-    },
-    "defwidget@explorer": {
-        "display:order": 1,
-        "icon": "folder-tree",
-        "label": "explorer",
-        "color": "#e8a838",
-        "description": "IDE-style file tree for Claude sessions",
-        "blockdef": {
-            "meta": {
-                "view": "explorer"
             }
         }
     }
