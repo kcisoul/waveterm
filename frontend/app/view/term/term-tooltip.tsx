@@ -90,8 +90,13 @@ interface TermLinkTooltipProps {
  * callback and renders a tooltip after a short delay.  Keeping state here
  * prevents unnecessary re-renders of the parent TerminalView.
  */
+function isFilePath(uri: string): boolean {
+    return uri.startsWith("/") || uri.startsWith("~");
+}
+
 export const TermLinkTooltip = React.memo(function TermLinkTooltip({ termWrap }: TermLinkTooltipProps) {
     const [mousePos, setMousePos] = React.useState<{ x: number; y: number } | null>(null);
+    const [hoveredUri, setHoveredUri] = React.useState<string | null>(null);
     const timeoutRef = React.useRef<number | null>(null);
     const maxTimeoutRef = React.useRef<number | null>(null);
 
@@ -106,6 +111,7 @@ export const TermLinkTooltip = React.memo(function TermLinkTooltip({ termWrap }:
             if (uri == null) {
                 clearTimeoutRef(maxTimeoutRef);
                 setMousePos(null);
+                setHoveredUri(null);
                 return;
             }
 
@@ -113,11 +119,13 @@ export const TermLinkTooltip = React.memo(function TermLinkTooltip({ termWrap }:
             timeoutRef.current = window.setTimeout(() => {
                 timeoutRef.current = null;
                 setMousePos({ x: mouseX, y: mouseY });
+                setHoveredUri(uri);
                 // Auto-dismiss after MaxHoverTimeMs so the tooltip doesn't linger forever.
                 clearTimeoutRef(maxTimeoutRef);
                 maxTimeoutRef.current = window.setTimeout(() => {
                     maxTimeoutRef.current = null;
                     setMousePos(null);
+                    setHoveredUri(null);
                 }, MaxHoverTimeMs);
             }, HoverDelayMs);
         };
@@ -127,8 +135,10 @@ export const TermLinkTooltip = React.memo(function TermLinkTooltip({ termWrap }:
             clearTimeoutRef(timeoutRef);
             clearTimeoutRef(maxTimeoutRef);
             setMousePos(null);
+            setHoveredUri(null);
         };
     }, [termWrap]);
 
-    return <TermTooltip mousePos={mousePos} content={<span>{modKey}-click to open link</span>} />;
+    const label = hoveredUri && isFilePath(hoveredUri) ? "file" : "link";
+    return <TermTooltip mousePos={mousePos} content={<span>{modKey}-click to open {label}</span>} />;
 });

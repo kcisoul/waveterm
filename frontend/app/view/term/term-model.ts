@@ -908,31 +908,58 @@ export class TermViewModel implements ViewModel {
 
         const hoveredLinkUri = this.termRef.current?.hoveredLinkUri;
         if (hoveredLinkUri) {
-            let hoveredURL: URL = null;
-            try {
-                hoveredURL = new URL(hoveredLinkUri);
-            } catch (e) {
-                // not a valid URL
-            }
-            if (hoveredURL) {
+            const isFilePath = hoveredLinkUri.startsWith("/") || hoveredLinkUri.startsWith("~");
+            if (isFilePath) {
                 menu.push({
-                    label: hoveredURL.hostname ? "Open URL (" + hoveredURL.hostname + ")" : "Open URL",
+                    label: "Open in File Manager",
                     click: () => {
-                        createBlock({
-                            meta: {
-                                view: "web",
-                                url: hoveredURL.toString(),
-                            },
-                        });
+                        getApi().openNativePath(hoveredLinkUri);
                     },
                 });
                 menu.push({
-                    label: "Open URL in External Browser",
+                    label: "Open Preview in New Block",
                     click: () => {
-                        getApi().openExternal(hoveredURL.toString());
+                        const blockData = globalStore.get(this.blockAtom);
+                        const connection = blockData?.meta?.connection;
+                        fireAndForget(() =>
+                            createBlock({
+                                meta: {
+                                    view: "preview",
+                                    file: hoveredLinkUri,
+                                    connection: connection,
+                                },
+                            })
+                        );
                     },
                 });
                 menu.push({ type: "separator" });
+            } else {
+                let hoveredURL: URL = null;
+                try {
+                    hoveredURL = new URL(hoveredLinkUri);
+                } catch (e) {
+                    // not a valid URL
+                }
+                if (hoveredURL) {
+                    menu.push({
+                        label: hoveredURL.hostname ? "Open URL (" + hoveredURL.hostname + ")" : "Open URL",
+                        click: () => {
+                            createBlock({
+                                meta: {
+                                    view: "web",
+                                    url: hoveredURL.toString(),
+                                },
+                            });
+                        },
+                    });
+                    menu.push({
+                        label: "Open URL in External Browser",
+                        click: () => {
+                            getApi().openExternal(hoveredURL.toString());
+                        },
+                    });
+                    menu.push({ type: "separator" });
+                }
             }
         }
 

@@ -36,6 +36,7 @@ import {
     isClaudeCodeCommand,
     type ShellIntegrationStatus,
 } from "./osc-handlers";
+import { FilePathLinkProvider } from "./filepath-link";
 import {
     bufferLinesToText,
     createTempFileFromBlob,
@@ -179,6 +180,23 @@ export class TermWrap {
                 }
             )
         );
+        const filePathLinkProvider = new FilePathLinkProvider({
+            onHover: (uri, mouseX, mouseY) => {
+                if (uri) {
+                    this.hoveredLinkUri = uri;
+                    this.onLinkHover?.(uri, mouseX, mouseY);
+                } else {
+                    this.hoveredLinkUri = null;
+                    this.onLinkHover?.(null, 0, 0);
+                }
+            },
+            getCwd: () => {
+                const blockData = globalStore.get(WOS.getWaveObjectAtom<Block>(`block:${this.blockId}`));
+                return blockData?.meta?.["cmd:cwd"] ?? null;
+            },
+        });
+        filePathLinkProvider.attach(this.terminal);
+        this.terminal.registerLinkProvider(filePathLinkProvider);
         this.setTermRenderer(WebGLSupported && waveOptions.useWebGl ? "webgl" : "dom");
         // Register OSC handlers
         this.terminal.parser.registerOscHandler(7, (data: string) => {
