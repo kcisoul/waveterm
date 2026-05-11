@@ -47,6 +47,8 @@ export class ExplorerViewModel implements ViewModel {
 
     private blockStateCache: Map<string, BlockExplorerState> = new Map();
     private blockClickUnsubFn: () => void;
+    private trackedCwdUnsubFn: () => void;
+    private trackedCwdLastValue: string;
 
     constructor({ blockId, nodeModel }: ViewModelInitType) {
         this.viewType = "explorer";
@@ -148,6 +150,25 @@ export class ExplorerViewModel implements ViewModel {
         } else {
             this.setRootPath(cwd);
         }
+
+        this.subscribeToTrackedCwd(blockId, cwd);
+    }
+
+    private subscribeToTrackedCwd(blockId: string, initialCwd: string) {
+        if (this.trackedCwdUnsubFn) {
+            this.trackedCwdUnsubFn();
+            this.trackedCwdUnsubFn = null;
+        }
+        this.trackedCwdLastValue = initialCwd;
+        const blockAtom = WOS.getWaveObjectAtom<Block>(`block:${blockId}`);
+        this.trackedCwdUnsubFn = globalStore.sub(blockAtom, () => {
+            if (globalStore.get(this.trackedBlockIdAtom) !== blockId) return;
+            const blockData = globalStore.get(blockAtom);
+            const cwd = blockData?.meta?.["cmd:cwd"];
+            if (!cwd || cwd === this.trackedCwdLastValue) return;
+            this.trackedCwdLastValue = cwd;
+            this.setRootPath(cwd);
+        });
     }
 
     private saveBlockState(blockId: string) {
@@ -289,6 +310,9 @@ export class ExplorerViewModel implements ViewModel {
     dispose() {
         if (this.blockClickUnsubFn) {
             this.blockClickUnsubFn();
+        }
+        if (this.trackedCwdUnsubFn) {
+            this.trackedCwdUnsubFn();
         }
     }
 }
