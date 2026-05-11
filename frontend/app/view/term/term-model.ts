@@ -43,6 +43,15 @@ import { getBlockingCommand } from "./shellblocking";
 import { computeTheme, DefaultTermTheme, isLikelyOnSameHost, trimTerminalSelection } from "./termutil";
 import { TermWrap, WebGLSupported } from "./termwrap";
 
+function shortenCwd(path: string): string {
+    if (!path) return "";
+    const home = path.match(/^\/Users\/[^/]+/);
+    if (home) {
+        return "~" + path.slice(home[0].length);
+    }
+    return path;
+}
+
 export class TermViewModel implements ViewModel {
     viewType: string;
     nodeModel: BlockNodeModel;
@@ -79,6 +88,8 @@ export class TermViewModel implements ViewModel {
     termBPMUnsubFn: () => void;
     termCursorUnsubFn: () => void;
     termCursorBlinkUnsubFn: () => void;
+    gitBranchAtom: jotai.PrimitiveAtom<string>;
+    cwdGitBranchUnsubFn: () => void;
     isCmdController: jotai.Atom<boolean>;
     isRestarting: jotai.PrimitiveAtom<boolean>;
     termDurableStatus: jotai.Atom<BlockJobStatusData | null>;
@@ -150,6 +161,22 @@ export class TermViewModel implements ViewModel {
                         this.setTermMode("vdom");
                     },
                 });
+            }
+            const cwdMeta = get(this.blockAtom)?.meta?.["cmd:cwd"];
+            if (cwdMeta) {
+                rtn.push({
+                    elemtype: "text",
+                    text: shortenCwd(cwdMeta),
+                    noGrow: true,
+                });
+                const branch = get(this.gitBranchAtom);
+                if (branch) {
+                    rtn.push({
+                        elemtype: "text",
+                        text: branch,
+                        noGrow: true,
+                    });
+                }
             }
             const isCmd = get(this.isCmdController);
             if (isCmd) {
@@ -397,6 +424,25 @@ export class TermViewModel implements ViewModel {
                 this.termRef.current.setCursorBlink(globalStore.get(termCursorBlinkAtom) ?? false);
             }
         });
+        this.gitBranchAtom = jotai.atom("") as jotai.PrimitiveAtom<string>;
+        const cwdAtom = jotai.atom((get) => get(this.blockAtom)?.meta?.["cmd:cwd"] ?? "");
+        const fetchGitBranch = () => {
+            const cwd = globalStore.get(cwdAtom);
+            if (!cwd) {
+                globalStore.set(this.gitBranchAtom, "");
+                return;
+            }
+            fireAndForget(async () => {
+                try {
+                    const branch = await RpcApi.GetGitBranchCommand(TabRpcClient, cwd);
+                    globalStore.set(this.gitBranchAtom, branch ?? "");
+                } catch {
+                    globalStore.set(this.gitBranchAtom, "");
+                }
+            });
+        };
+        this.cwdGitBranchUnsubFn = globalStore.sub(cwdAtom, fetchGitBranch);
+        fetchGitBranch();
     }
 
     getShellIntegrationIconButton(get: jotai.Getter): IconButtonDecl | null {
@@ -596,6 +642,7 @@ export class TermViewModel implements ViewModel {
         this.termBPMUnsubFn?.();
         this.termCursorUnsubFn?.();
         this.termCursorBlinkUnsubFn?.();
+        this.cwdGitBranchUnsubFn?.();
     }
 
     giveFocus(): boolean {

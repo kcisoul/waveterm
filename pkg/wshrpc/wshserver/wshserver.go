@@ -1686,3 +1686,56 @@ func (ws *WshServer) ClaudeSessionsListCommand(ctx context.Context) ([]*wshrpc.C
 	}
 	return result, nil
 }
+
+func (ws *WshServer) GetGitBranchCommand(ctx context.Context, path string) (string, error) {
+	if path == "" {
+		return "", nil
+	}
+	gitDir := findGitDir(path)
+	if gitDir == "" {
+		return "", nil
+	}
+	headData, err := os.ReadFile(filepath.Join(gitDir, "HEAD"))
+	if err != nil {
+		return "", nil
+	}
+	head := strings.TrimSpace(string(headData))
+	if strings.HasPrefix(head, "ref: refs/heads/") {
+		return strings.TrimPrefix(head, "ref: refs/heads/"), nil
+	}
+	if len(head) >= 7 {
+		return head[:7], nil
+	}
+	return head, nil
+}
+
+func findGitDir(startPath string) string {
+	dir := startPath
+	for {
+		gitPath := filepath.Join(dir, ".git")
+		info, err := os.Stat(gitPath)
+		if err == nil {
+			if info.IsDir() {
+				return gitPath
+			}
+			data, err := os.ReadFile(gitPath)
+			if err != nil {
+				return ""
+			}
+			line := strings.TrimSpace(string(data))
+			if strings.HasPrefix(line, "gitdir: ") {
+				resolved := strings.TrimPrefix(line, "gitdir: ")
+				if !filepath.IsAbs(resolved) {
+					resolved = filepath.Join(dir, resolved)
+				}
+				return resolved
+			}
+			return ""
+		}
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			return ""
+		}
+		dir = parent
+	}
+}

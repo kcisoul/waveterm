@@ -148,6 +148,9 @@ type WshRpcInterface interface {
 	// claude sessions
 	ClaudeSessionsListCommand(ctx context.Context) ([]*ClaudeSessionInfo, error)
 
+	// git
+	GetGitBranchCommand(ctx context.Context, path string) (string, error)
+
 	WorkspaceListCommand(ctx context.Context) ([]WorkspaceInfoData, error)
 	GetUpdateChannelCommand(ctx context.Context) (string, error)
 
