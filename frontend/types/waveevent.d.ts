@@ -28,6 +28,7 @@ declare global {
         | "badge"
         | "claude:sessions"
         | "block:focus"
+        | "block:click"
     ;
 
     type WaveEvent = {
@@ -57,7 +58,8 @@ declare global {
         { event: "block:jobstatus"; data?: BlockJobStatusData; } | 
         { event: "badge"; data?: BadgeEvent; } | 
         { event: "claude:sessions"; data?: null; } | 
-        { event: "block:focus"; data?: string; }
+        { event: "block:focus"; data?: string; } | 
+        { event: "block:click"; data?: string; }
     );
 
 }

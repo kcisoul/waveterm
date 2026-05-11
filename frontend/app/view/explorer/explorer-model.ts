@@ -46,7 +46,7 @@ export class ExplorerViewModel implements ViewModel {
     viewText: jotai.Atom<HeaderElem[]>;
 
     private blockStateCache: Map<string, BlockExplorerState> = new Map();
-    private blockFocusUnsubFn: () => void;
+    private blockClickUnsubFn: () => void;
 
     constructor({ blockId, nodeModel }: ViewModelInitType) {
         this.viewType = "explorer";
@@ -82,12 +82,12 @@ export class ExplorerViewModel implements ViewModel {
             return rtn;
         });
 
-        this.blockFocusUnsubFn = waveEventSubscribeSingle({
-            eventType: "block:focus",
+        this.blockClickUnsubFn = waveEventSubscribeSingle({
+            eventType: "block:click",
             handler: (event) => {
-                const focusedBlockId = event.data as string;
-                if (focusedBlockId && focusedBlockId !== this.blockId) {
-                    this.handleBlockFocus(focusedBlockId);
+                const clickedBlockId = event.data as string;
+                if (clickedBlockId && clickedBlockId !== this.blockId) {
+                    this.handleBlockFocus(clickedBlockId);
                 }
             },
         });
@@ -292,8 +292,8 @@ export class ExplorerViewModel implements ViewModel {
     }
 
     dispose() {
-        if (this.blockFocusUnsubFn) {
-            this.blockFocusUnsubFn();
+        if (this.blockClickUnsubFn) {
+            this.blockClickUnsubFn();
         }
     }
 }

@@ -9,6 +9,8 @@ import {
     SubBlockProps,
 } from "@/app/block/blocktypes";
 import { useTabModel } from "@/app/store/tab-model";
+import { RpcApi } from "@/app/store/wshclientapi";
+import { TabRpcClient } from "@/app/store/wshrpcutil";
 import { useWaveEnv } from "@/app/waveenv/waveenv";
 import { ErrorBoundary } from "@/element/errorboundary";
 import { CenteredDiv } from "@/element/quickelems";
@@ -17,7 +19,7 @@ import { counterInc } from "@/store/counters";
 import { getBlockComponentModel, registerBlockComponentModel, unregisterBlockComponentModel } from "@/store/global";
 import { makeORef } from "@/store/wos";
 import { focusedBlockId, getElemAsStr } from "@/util/focusutil";
-import { isBlank, useAtomValueSafe } from "@/util/util";
+import { fireAndForget, isBlank, useAtomValueSafe } from "@/util/util";
 import clsx from "clsx";
 import { useAtomValue } from "jotai";
 import { memo, Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
@@ -130,7 +132,14 @@ const BlockFull = memo(({ nodeModel, viewModel }: FullBlockProps) => {
 
     const setBlockClickedTrue = useCallback(() => {
         setBlockClicked(true);
-    }, []);
+        fireAndForget(() =>
+            RpcApi.EventPublishCommand(TabRpcClient, {
+                event: "block:click",
+                scopes: ["block:" + nodeModel.blockId],
+                data: nodeModel.blockId,
+            })
+        );
+    }, [nodeModel.blockId]);
 
     const [blockContentOffset, setBlockContentOffset] = useState<Dimensions>();
 

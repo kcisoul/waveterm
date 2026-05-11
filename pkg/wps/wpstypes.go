@@ -36,6 +36,7 @@ const (
 	Event_Badge               = "badge"                // type: baseds.BadgeEvent
 	Event_ClaudeSessions      = "claude:sessions"      // type: none
 	Event_BlockFocus          = "block:focus"           // type: string
+	Event_BlockClick          = "block:click"           // type: string
 )
 
 var AllEvents []string = []string{
@@ -60,6 +61,7 @@ var AllEvents []string = []string{
 	Event_Badge,
 	Event_ClaudeSessions,
 	Event_BlockFocus,
+	Event_BlockClick,
 }
 
 type WaveEvent struct {
