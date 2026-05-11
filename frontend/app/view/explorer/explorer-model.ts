@@ -125,11 +125,6 @@ export class ExplorerViewModel implements ViewModel {
         const vm = bcm.viewModel;
         if (!(vm instanceof TermViewModel)) return;
 
-        const termRef = vm.termRef?.current;
-        if (!termRef) return;
-        const isClaudeActive = globalStore.get(termRef.claudeCodeActiveAtom);
-        if (!isClaudeActive) return;
-
         const blockAtom = WOS.getWaveObjectAtom<Block>(`block:${blockId}`);
         const blockData = globalStore.get(blockAtom);
         const cwd = blockData?.meta?.["cmd:cwd"];
