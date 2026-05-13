@@ -144,7 +144,33 @@ export class TermWrap {
         this.lastCommandAtom = jotai.atom(null) as jotai.PrimitiveAtom<string | null>;
         this.claudeCodeActiveAtom = jotai.atom(false);
         this.webglEnabledAtom = jotai.atom(false) as jotai.PrimitiveAtom<boolean>;
-        this.terminal = new Terminal(options);
+        const terminalOptions = {
+            ...options,
+            linkHandler: {
+                activate: (e: MouseEvent, uri: string) => {
+                    e.preventDefault();
+                    if (uri.startsWith("file://")) {
+                        try {
+                            const decoded = decodeURIComponent(uri.replace(/^file:\/\/(localhost)?/, ""));
+                            getApi().openNativePath(decoded);
+                        } catch {
+                            getApi().openNativePath(uri);
+                        }
+                        return;
+                    }
+                    fireAndForget(() => openLink(uri));
+                },
+                hover: (_e: MouseEvent, uri: string) => {
+                    this.hoveredLinkUri = uri;
+                    this.onLinkHover?.(uri, _e.clientX, _e.clientY);
+                },
+                leave: () => {
+                    this.hoveredLinkUri = null;
+                    this.onLinkHover?.(null, 0, 0);
+                },
+            },
+        };
+        this.terminal = new Terminal(terminalOptions);
         this.fitAddon = new FitAddon();
         this.serializeAddon = new SerializeAddon();
         this.searchAddon = new SearchAddon();
