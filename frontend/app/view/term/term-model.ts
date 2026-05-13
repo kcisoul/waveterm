@@ -167,7 +167,7 @@ export class TermViewModel implements ViewModel {
                 rtn.push({
                     elemtype: "text",
                     text: shortenCwd(cwdMeta),
-                    noGrow: true,
+                    className: "min-w-[60px] [direction:rtl] [text-align:left]",
                 });
                 const branch = get(this.gitBranchAtom);
                 if (branch) {
