@@ -180,6 +180,7 @@ export class TermViewModel implements ViewModel {
                                 icon: "code-branch",
                                 title: "Git Branch",
                                 noAction: true,
+                                className: "!w-auto !p-0",
                             },
                             {
                                 elemtype: "text",
