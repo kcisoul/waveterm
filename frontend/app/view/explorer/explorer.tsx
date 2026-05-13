@@ -7,6 +7,7 @@ import { ContextMenuModel } from "@/app/store/contextmenu";
 import { getApi } from "@/store/global";
 import clsx from "clsx";
 import { useAtomValue } from "jotai";
+import { globalStore } from "@/store/global";
 import * as React from "react";
 import type { ExplorerViewModel, TreeNodeState } from "./explorer-model";
 import "./explorer.scss";
@@ -113,8 +114,16 @@ const TreeItem = React.memo(function TreeItem({
     const isExpanded = node?.expanded ?? false;
     const isLoading = node?.loading ?? false;
     const children = node?.children;
+    const selectedPath = useAtomValue(model.selectedPathAtom);
+    const isSelected = selectedPath === filePath;
+
+    const select = () => {
+        globalStore.set(model.selectedPathAtom, filePath);
+        globalStore.set(model.selectedIsDirAtom, isDir);
+    };
 
     const handleClick = (e: React.MouseEvent) => {
+        select();
         if (e.metaKey || e.ctrlKey) {
             getApi().openNativePath(filePath);
             return;
@@ -132,11 +141,16 @@ const TreeItem = React.memo(function TreeItem({
     };
 
     const handleContextMenu = (e: React.MouseEvent) => {
+        select();
         const menuItems: ContextMenuItem[] = [];
         if (isDir) {
             menuItems.push({
-                label: "Open in Wave",
+                label: "Open in Wave Files",
                 click: () => model.openFile(filePath),
+            });
+            menuItems.push({
+                label: "Open in Wave Terminal",
+                click: () => model.openInTerminal(filePath),
             });
         } else {
             menuItems.push({
@@ -163,7 +177,7 @@ const TreeItem = React.memo(function TreeItem({
     return (
         <>
             <div
-                className="explorer-tree-item cursor-pointer"
+                className={clsx("explorer-tree-item cursor-pointer", { "explorer-tree-item-selected": isSelected })}
                 style={{ paddingLeft: `${depth * 16 + 8}px` }}
                 onClick={handleClick}
                 onContextMenu={handleContextMenu}

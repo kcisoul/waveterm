@@ -13,6 +13,7 @@ import {
     createBlock,
 } from "@/store/global";
 import { TermViewModel } from "@/app/view/term/term-model";
+import * as keyutil from "@/util/keyutil";
 import * as jotai from "jotai";
 import { ExplorerView } from "./explorer";
 
@@ -44,6 +45,8 @@ export class ExplorerViewModel implements ViewModel {
     trackedBlockIdAtom: jotai.PrimitiveAtom<string>;
     noClaudeAtom: jotai.PrimitiveAtom<boolean>;
     viewText: jotai.Atom<HeaderElem[]>;
+    selectedPathAtom: jotai.PrimitiveAtom<string>;
+    selectedIsDirAtom: jotai.PrimitiveAtom<boolean>;
 
     private blockStateCache: Map<string, BlockExplorerState> = new Map();
     private blockClickUnsubFn: () => void;
@@ -61,6 +64,8 @@ export class ExplorerViewModel implements ViewModel {
         this.errorAtom = jotai.atom("") as jotai.PrimitiveAtom<string>;
         this.trackedBlockIdAtom = jotai.atom("") as jotai.PrimitiveAtom<string>;
         this.noClaudeAtom = jotai.atom(true) as jotai.PrimitiveAtom<boolean>;
+        this.selectedPathAtom = jotai.atom("") as jotai.PrimitiveAtom<string>;
+        this.selectedIsDirAtom = jotai.atom(false) as jotai.PrimitiveAtom<boolean>;
 
         this.viewText = jotai.atom((get) => {
             const rootPath = get(this.rootPathAtom);
@@ -294,6 +299,28 @@ export class ExplorerViewModel implements ViewModel {
                 file: filePath,
             },
         });
+    }
+
+    async openInTerminal(dirPath: string) {
+        await createBlock({
+            meta: {
+                view: "term",
+                controller: "shell",
+                "cmd:cwd": dirPath,
+            },
+        });
+    }
+
+    keyDownHandler(e: WaveKeyboardEvent): boolean {
+        if (keyutil.checkKeyPressed(e, "Cmd:Shift:o")) {
+            const isDir = globalStore.get(this.selectedIsDirAtom);
+            const path = globalStore.get(this.selectedPathAtom);
+            if (isDir && path) {
+                this.openInTerminal(path);
+            }
+            return true;
+        }
+        return false;
     }
 
     getFilePath(file: FileInfo): string {

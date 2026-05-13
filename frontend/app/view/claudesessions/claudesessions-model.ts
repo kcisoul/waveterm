@@ -1,6 +1,7 @@
 // Copyright 2026, Command Line Inc.
 // SPDX-License-Identifier: Apache-2.0
 
+import claudeCodeIconUrl from "@/app/asset/claudecode-color.svg?url";
 import type { BlockNodeModel } from "@/app/block/blocktypes";
 import { createBlock, globalStore } from "@/app/store/global";
 import { RpcApi } from "@/app/store/wshclientapi";
@@ -9,13 +10,22 @@ import { stringToBase64 } from "@/util/util";
 import { waveEventSubscribeSingle } from "@/app/store/wps";
 import { checkKeyPressed } from "@/util/keyutil";
 import * as jotai from "jotai";
+import * as React from "react";
 import { ClaudeSessionsView } from "./claudesessions";
 
 export class ClaudeSessionsViewModel implements ViewModel {
     viewType: string;
     blockId: string;
     nodeModel: BlockNodeModel;
-    viewIcon = jotai.atom("messages");
+    viewIcon = jotai.atom<IconButtonDecl>({
+        elemtype: "iconbutton",
+        icon: React.createElement("img", {
+            src: claudeCodeIconUrl,
+            className: "w-3.5 h-3.5",
+            alt: "Claude Code",
+        }),
+        noAction: true,
+    });
     viewName = jotai.atom("Claude Sessions");
     viewComponent = ClaudeSessionsView;
     noPadding = jotai.atom(true);

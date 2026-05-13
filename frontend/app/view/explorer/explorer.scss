@@ -55,6 +55,10 @@
     &:hover {
         background: rgba(255, 255, 255, 0.06);
     }
+
+    &.explorer-tree-item-selected {
+        background: rgba(255, 255, 255, 0.12);
+    }
 }
 
 .explorer-tree-chevron {
