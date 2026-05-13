@@ -825,8 +825,8 @@ func RestartBuilderAndWaitCommand(w *wshutil.WshRpc, data wshrpc.CommandRestartB
 }
 
 // command "restoreclosed", wshserver.RestoreClosedCommand
-func RestoreClosedCommand(w *wshutil.WshRpc, opts *wshrpc.RpcOpts) error {
-	_, err := sendRpcRequestCallHelper[any](w, "restoreclosed", nil, opts)
+func RestoreClosedCommand(w *wshutil.WshRpc, data string, opts *wshrpc.RpcOpts) error {
+	_, err := sendRpcRequestCallHelper[any](w, "restoreclosed", data, opts)
 	return err
 }
 

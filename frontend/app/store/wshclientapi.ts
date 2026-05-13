@@ -829,9 +829,9 @@ export class RpcApiType {
     }
 
     // command "restoreclosed" [call]
-    RestoreClosedCommand(client: WshClient, opts?: RpcOpts): Promise<void> {
-        if (this.mockClient) return this.mockClient.mockWshRpcCall(client, "restoreclosed", null, opts);
-        return client.wshRpcCall("restoreclosed", null, opts);
+    RestoreClosedCommand(client: WshClient, data: string, opts?: RpcOpts): Promise<void> {
+        if (this.mockClient) return this.mockClient.mockWshRpcCall(client, "restoreclosed", data, opts);
+        return client.wshRpcCall("restoreclosed", data, opts);
     }
 
     // command "routeannounce" [call]

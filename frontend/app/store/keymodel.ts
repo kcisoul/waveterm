@@ -547,8 +547,10 @@ function registerGlobalKeys() {
         simpleCloseStaticTab();
         return true;
     });
-    globalKeyMap.set("Cmd:Shift:t", () => {
-        fireAndForget(() => RpcApi.RestoreClosedCommand(TabRpcClient));
+    globalKeyMap.set("Cmd:Shift:b", () => {
+        const tabId = globalStore.get(atoms.staticTabId);
+        if (!tabId) return true;
+        fireAndForget(() => RpcApi.RestoreClosedCommand(TabRpcClient, tabId));
         return true;
     });
     globalKeyMap.set("Cmd:m", () => {

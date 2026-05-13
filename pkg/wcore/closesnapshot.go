@@ -13,10 +13,7 @@ import (
 	"github.com/wavetermdev/waveterm/pkg/wstore"
 )
 
-const ClosedKindTab = "tab"
-const ClosedKindBlock = "block"
-
-const closedRingMax = 20
+const closedRingMaxPerTab = 20
 
 type ctxSkipCloseSnapshotKey struct{}
 
@@ -26,25 +23,22 @@ type BlockSnap struct {
 	SubBlocks  []*BlockSnap        `json:"subblocks,omitempty"`
 }
 
-type TabSnap struct {
-	Name        string              `json:"name"`
-	LayoutState string              `json:"layoutstate"`
-	Meta        waveobj.MetaMapType `json:"meta"`
-	Blocks      []*BlockSnap        `json:"blocks"`
+type BlockAnchor struct {
+	SiblingBlockId string  `json:"siblingblockid"`
+	Direction      string  `json:"direction"` // "horizontal" or "vertical"
+	Position       string  `json:"position"`  // "before" or "after"
+	Size           float64 `json:"size,omitempty"`
 }
 
 type ClosedItem struct {
-	Kind        string     `json:"kind"`
-	ClosedAt    int64      `json:"closedat"`
-	WorkspaceId string     `json:"workspaceid,omitempty"`
-	TabId       string     `json:"tabid,omitempty"`
-	Tab         *TabSnap   `json:"tab,omitempty"`
-	Block       *BlockSnap `json:"block,omitempty"`
+	ClosedAt int64        `json:"closedat"`
+	Block    *BlockSnap   `json:"block"`
+	Anchor   *BlockAnchor `json:"anchor,omitempty"`
 }
 
 var (
-	closedRingMu sync.Mutex
-	closedRing   []*ClosedItem
+	closedRingMu    sync.Mutex
+	closedRingByTab = map[string][]*ClosedItem{}
 )
 
 func ContextWithSkipCloseSnapshot(ctx context.Context) context.Context {
@@ -56,24 +50,30 @@ func shouldSkipCloseSnapshot(ctx context.Context) bool {
 	return v
 }
 
-func PushClosedItem(item *ClosedItem) {
+func PushClosedBlock(tabId string, item *ClosedItem) {
+	if tabId == "" || item == nil {
+		return
+	}
 	closedRingMu.Lock()
 	defer closedRingMu.Unlock()
 	item.ClosedAt = time.Now().UnixMilli()
-	closedRing = append(closedRing, item)
-	if len(closedRing) > closedRingMax {
-		closedRing = closedRing[len(closedRing)-closedRingMax:]
+	ring := closedRingByTab[tabId]
+	ring = append(ring, item)
+	if len(ring) > closedRingMaxPerTab {
+		ring = ring[len(ring)-closedRingMaxPerTab:]
 	}
+	closedRingByTab[tabId] = ring
 }
 
-func PopClosedItem() *ClosedItem {
+func PopClosedBlock(tabId string) *ClosedItem {
 	closedRingMu.Lock()
 	defer closedRingMu.Unlock()
-	if len(closedRing) == 0 {
+	ring := closedRingByTab[tabId]
+	if len(ring) == 0 {
 		return nil
 	}
-	item := closedRing[len(closedRing)-1]
-	closedRing = closedRing[:len(closedRing)-1]
+	item := ring[len(ring)-1]
+	closedRingByTab[tabId] = ring[:len(ring)-1]
 	return item
 }
 
@@ -96,35 +96,6 @@ func snapshotBlock(ctx context.Context, blockId string) (*BlockSnap, error) {
 	return snap, nil
 }
 
-func snapshotTab(ctx context.Context, workspaceId, tabId string) *ClosedItem {
-	tab, err := wstore.DBGet[*waveobj.Tab](ctx, tabId)
-	if err != nil || tab == nil {
-		return nil
-	}
-	tabSnap := &TabSnap{
-		Name:        tab.Name,
-		LayoutState: "",
-		Meta:        cloneMeta(tab.Meta),
-	}
-	if layout, err := wstore.DBGet[*waveobj.LayoutState](ctx, tab.LayoutState); err == nil && layout != nil {
-		if data, err := json.Marshal(layout); err == nil {
-			tabSnap.LayoutState = string(data)
-		}
-	}
-	for _, blockId := range tab.BlockIds {
-		blockSnap, err := snapshotBlock(ctx, blockId)
-		if err != nil || blockSnap == nil {
-			continue
-		}
-		tabSnap.Blocks = append(tabSnap.Blocks, blockSnap)
-	}
-	return &ClosedItem{
-		Kind:        ClosedKindTab,
-		WorkspaceId: workspaceId,
-		Tab:         tabSnap,
-	}
-}
-
 func cloneMeta(m waveobj.MetaMapType) waveobj.MetaMapType {
 	if m == nil {
 		return nil
@@ -134,4 +105,74 @@ func cloneMeta(m waveobj.MetaMapType) waveobj.MetaMapType {
 		out[k] = v
 	}
 	return out
+}
+
+type layoutNodeForFind struct {
+	FlexDirection string               `json:"flexDirection,omitempty"`
+	Size          float64              `json:"size,omitempty"`
+	Children      []*layoutNodeForFind `json:"children,omitempty"`
+	Data          *layoutDataForFind   `json:"data,omitempty"`
+}
+
+type layoutDataForFind struct {
+	BlockId string `json:"blockId,omitempty"`
+}
+
+// FindBlockAnchor walks the tab's layout tree and returns positioning info
+// for blockId relative to an adjacent sibling, suitable for replaying as a
+// Split action on restore. Returns nil if no usable anchor (e.g., root block).
+func FindBlockAnchor(ctx context.Context, tabId, blockId string) *BlockAnchor {
+	tab, err := wstore.DBGet[*waveobj.Tab](ctx, tabId)
+	if err != nil || tab == nil {
+		return nil
+	}
+	layout, err := wstore.DBGet[*waveobj.LayoutState](ctx, tab.LayoutState)
+	if err != nil || layout == nil || layout.RootNode == nil {
+		return nil
+	}
+	rawJSON, err := json.Marshal(layout.RootNode)
+	if err != nil {
+		return nil
+	}
+	var root layoutNodeForFind
+	if err := json.Unmarshal(rawJSON, &root); err != nil {
+		return nil
+	}
+	return findAnchorIn(&root, blockId)
+}
+
+func findAnchorIn(node *layoutNodeForFind, blockId string) *BlockAnchor {
+	if node == nil {
+		return nil
+	}
+	for idx, child := range node.Children {
+		if child.Data != nil && child.Data.BlockId == blockId {
+			var sibling *layoutNodeForFind
+			pos := "after"
+			if idx > 0 {
+				sibling = node.Children[idx-1]
+				pos = "after"
+			} else if idx+1 < len(node.Children) {
+				sibling = node.Children[idx+1]
+				pos = "before"
+			}
+			if sibling == nil || sibling.Data == nil || sibling.Data.BlockId == "" {
+				return nil
+			}
+			direction := "horizontal"
+			if node.FlexDirection == "column" {
+				direction = "vertical"
+			}
+			return &BlockAnchor{
+				SiblingBlockId: sibling.Data.BlockId,
+				Direction:      direction,
+				Position:       pos,
+				Size:           child.Size,
+			}
+		}
+		if anchor := findAnchorIn(child, blockId); anchor != nil {
+			return anchor
+		}
+	}
+	return nil
 }

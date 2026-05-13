@@ -151,8 +151,8 @@ type WshRpcInterface interface {
 	// git
 	GetGitBranchCommand(ctx context.Context, path string) (string, error)
 
-	// undo close (tab or block)
-	RestoreClosedCommand(ctx context.Context) error
+	// undo close (block, scoped per tab)
+	RestoreClosedCommand(ctx context.Context, tabId string) error
 
 	WorkspaceListCommand(ctx context.Context) ([]WorkspaceInfoData, error)
 	GetUpdateChannelCommand(ctx context.Context) (string, error)

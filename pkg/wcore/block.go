@@ -166,10 +166,9 @@ func DeleteBlock(ctx context.Context, blockId string, recursive bool) error {
 		parentORef := waveobj.ParseORefNoErr(block.ParentORef)
 		if parentORef.OType == waveobj.OType_Tab {
 			if snap, _ := snapshotBlock(ctx, blockId); snap != nil {
-				PushClosedItem(&ClosedItem{
-					Kind:  ClosedKindBlock,
-					TabId: parentORef.OID,
-					Block: snap,
+				PushClosedBlock(parentORef.OID, &ClosedItem{
+					Block:  snap,
+					Anchor: FindBlockAnchor(ctx, parentORef.OID, blockId),
 				})
 			}
 		}

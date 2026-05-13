@@ -306,12 +306,7 @@ func DeleteTab(ctx context.Context, workspaceId string, tabId string, recursive 
 		return "", fmt.Errorf("tab %s not found in workspace %s", tabId, workspaceId)
 	}
 
-	// snapshot before any mutations so block deletes below don't pollute the ring
-	if !shouldSkipCloseSnapshot(ctx) {
-		if snap := snapshotTab(ctx, workspaceId, tabId); snap != nil {
-			PushClosedItem(snap)
-		}
-	}
+	// when closing the tab itself, its blocks shouldn't enter the per-tab undo ring
 	ctx = ContextWithSkipCloseSnapshot(ctx)
 
 	ws.TabIds = append(ws.TabIds[:tabIdx], ws.TabIds[tabIdx+1:]...)

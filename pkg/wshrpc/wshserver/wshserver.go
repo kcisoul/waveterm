@@ -1740,54 +1740,49 @@ func findGitDir(startPath string) string {
 	}
 }
 
-func (ws *WshServer) RestoreClosedCommand(ctx context.Context) error {
-	item := wcore.PopClosedItem()
+func (ws *WshServer) RestoreClosedCommand(ctx context.Context, tabId string) error {
+	if tabId == "" {
+		return fmt.Errorf("tabId is required")
+	}
+	item := wcore.PopClosedBlock(tabId)
 	if item == nil {
-		return fmt.Errorf("no closed items to restore")
+		return fmt.Errorf("no closed blocks to restore in this tab")
+	}
+	if item.Block == nil {
+		return fmt.Errorf("invalid block snapshot")
 	}
 	ctx = waveobj.ContextWithUpdates(ctx)
-	switch item.Kind {
-	case wcore.ClosedKindBlock:
-		if item.Block == nil {
-			return fmt.Errorf("invalid block snapshot")
-		}
-		if err := restoreBlockInto(ctx, item.TabId, item.Block); err != nil {
-			return err
-		}
-	case wcore.ClosedKindTab:
-		if item.Tab == nil || item.WorkspaceId == "" {
-			return fmt.Errorf("invalid tab snapshot")
-		}
-		newTabId, err := wcore.CreateTab(ctx, item.WorkspaceId, item.Tab.Name, true, false)
-		if err != nil {
-			return fmt.Errorf("error recreating tab: %w", err)
-		}
-		for _, b := range item.Tab.Blocks {
-			if err := restoreBlockInto(ctx, newTabId, b); err != nil {
-				log.Printf("RestoreClosedCommand: skip block: %v", err)
-			}
-		}
-	default:
-		return fmt.Errorf("unknown closed item kind: %s", item.Kind)
+	blockDef := &waveobj.BlockDef{Meta: item.Block.Meta}
+	blockData, err := wcore.CreateBlock(ctx, tabId, blockDef, nil)
+	if err != nil {
+		return fmt.Errorf("error creating block: %w", err)
+	}
+	action := layoutActionFromAnchor(blockData.OID, item.Anchor)
+	if err := wcore.QueueLayoutActionForTab(ctx, tabId, action); err != nil {
+		return fmt.Errorf("error queuing layout: %w", err)
 	}
 	updates := waveobj.ContextGetUpdatesRtn(ctx)
 	wps.Broker.SendUpdateEvents(updates)
 	return nil
 }
 
-func restoreBlockInto(ctx context.Context, tabId string, snap *wcore.BlockSnap) error {
-	blockDef := &waveobj.BlockDef{Meta: snap.Meta}
-	blockData, err := wcore.CreateBlock(ctx, tabId, blockDef, nil)
-	if err != nil {
-		return fmt.Errorf("error creating block: %w", err)
+func layoutActionFromAnchor(newBlockId string, anchor *wcore.BlockAnchor) waveobj.LayoutActionData {
+	if anchor == nil || anchor.SiblingBlockId == "" {
+		return waveobj.LayoutActionData{
+			ActionType: wcore.LayoutActionDataType_Insert,
+			BlockId:    newBlockId,
+			Focused:    true,
+		}
 	}
-	action := waveobj.LayoutActionData{
-		ActionType: wcore.LayoutActionDataType_Insert,
-		BlockId:    blockData.OID,
-		Focused:    true,
+	actionType := wcore.LayoutActionDataType_SplitHorizontal
+	if anchor.Direction == "vertical" {
+		actionType = wcore.LayoutActionDataType_SplitVertical
 	}
-	if err := wcore.QueueLayoutActionForTab(ctx, tabId, action); err != nil {
-		return fmt.Errorf("error queuing layout: %w", err)
+	return waveobj.LayoutActionData{
+		ActionType:    actionType,
+		BlockId:       newBlockId,
+		TargetBlockId: anchor.SiblingBlockId,
+		Position:      anchor.Position,
+		Focused:       true,
 	}
-	return nil
 }
