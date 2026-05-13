@@ -22,7 +22,12 @@ import {
 } from "@/app/store/global";
 import { getActiveTabModel } from "@/app/store/tab-model";
 import { WorkspaceLayoutModel } from "@/app/workspace/workspace-layout-model";
-import { deleteLayoutModelForTab, getLayoutModelForStaticTab, NavigateDirection } from "@/layout/index";
+import {
+    deleteLayoutModelForTab,
+    getLayoutModelForStaticTab,
+    LayoutTreeActionType,
+    NavigateDirection,
+} from "@/layout/index";
 import * as keyutil from "@/util/keyutil";
 import { isWindows } from "@/util/platformutil";
 import { CHORD_TIMEOUT } from "@/util/sharedconst";
@@ -239,6 +244,25 @@ function switchBlockByBlockNum(index: number) {
     setTimeout(() => {
         globalRefocus();
     }, 10);
+}
+
+function moveFocusedBlockInDirection(direction: NavigateDirection) {
+    const layoutModel = getLayoutModelForStaticTab();
+    const originalNodeId = layoutModel.focusedNodeId;
+    if (!originalNodeId) return;
+    const navResult = layoutModel.switchNodeFocusInDirection(direction, false);
+    if (!navResult.success || navResult.atLeft || navResult.atRight || navResult.atTop || navResult.atBottom) {
+        layoutModel.focusNode(originalNodeId);
+        return;
+    }
+    const neighborNodeId = layoutModel.focusedNodeId;
+    if (!neighborNodeId || neighborNodeId === originalNodeId) return;
+    layoutModel.treeReducer({
+        type: LayoutTreeActionType.Swap,
+        node1Id: originalNodeId,
+        node2Id: neighborNodeId,
+    } as any);
+    layoutModel.focusNode(originalNodeId);
 }
 
 function switchBlockInDirection(direction: NavigateDirection) {
@@ -551,6 +575,22 @@ function registerGlobalKeys() {
         const tabId = globalStore.get(atoms.staticTabId);
         if (!tabId) return true;
         fireAndForget(() => RpcApi.RestoreClosedCommand(TabRpcClient, tabId));
+        return true;
+    });
+    globalKeyMap.set("Cmd:Shift:ArrowUp", () => {
+        moveFocusedBlockInDirection(NavigateDirection.Up);
+        return true;
+    });
+    globalKeyMap.set("Cmd:Shift:ArrowDown", () => {
+        moveFocusedBlockInDirection(NavigateDirection.Down);
+        return true;
+    });
+    globalKeyMap.set("Cmd:Shift:ArrowLeft", () => {
+        moveFocusedBlockInDirection(NavigateDirection.Left);
+        return true;
+    });
+    globalKeyMap.set("Cmd:Shift:ArrowRight", () => {
+        moveFocusedBlockInDirection(NavigateDirection.Right);
         return true;
     });
     globalKeyMap.set("Cmd:m", () => {
