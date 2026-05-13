@@ -173,7 +173,7 @@ export class TermViewModel implements ViewModel {
                 if (branch) {
                     rtn.push({
                         elemtype: "div",
-                        className: "flex items-center gap-1",
+                        className: "!w-auto !justify-start gap-1 flex-nogrow",
                         children: [
                             {
                                 elemtype: "iconbutton",
