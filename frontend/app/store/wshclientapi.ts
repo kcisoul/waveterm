@@ -828,6 +828,12 @@ export class RpcApiType {
         return client.wshRpcCall("restartbuilderandwait", data, opts);
     }
 
+    // command "restoreclosed" [call]
+    RestoreClosedCommand(client: WshClient, opts?: RpcOpts): Promise<void> {
+        if (this.mockClient) return this.mockClient.mockWshRpcCall(client, "restoreclosed", null, opts);
+        return client.wshRpcCall("restoreclosed", null, opts);
+    }
+
     // command "routeannounce" [call]
     RouteAnnounceCommand(client: WshClient, opts?: RpcOpts): Promise<void> {
         if (this.mockClient) return this.mockClient.mockWshRpcCall(client, "routeannounce", null, opts);

@@ -824,6 +824,12 @@ func RestartBuilderAndWaitCommand(w *wshutil.WshRpc, data wshrpc.CommandRestartB
 	return resp, err
 }
 
+// command "restoreclosed", wshserver.RestoreClosedCommand
+func RestoreClosedCommand(w *wshutil.WshRpc, opts *wshrpc.RpcOpts) error {
+	_, err := sendRpcRequestCallHelper[any](w, "restoreclosed", nil, opts)
+	return err
+}
+
 // command "routeannounce", wshserver.RouteAnnounceCommand
 func RouteAnnounceCommand(w *wshutil.WshRpc, opts *wshrpc.RpcOpts) error {
 	_, err := sendRpcRequestCallHelper[any](w, "routeannounce", nil, opts)

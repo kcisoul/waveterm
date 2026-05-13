@@ -162,6 +162,19 @@ func DeleteBlock(ctx context.Context, blockId string, recursive bool) error {
 	if block == nil {
 		return nil
 	}
+	if !shouldSkipCloseSnapshot(ctx) {
+		parentORef := waveobj.ParseORefNoErr(block.ParentORef)
+		if parentORef.OType == waveobj.OType_Tab {
+			if snap, _ := snapshotBlock(ctx, blockId); snap != nil {
+				PushClosedItem(&ClosedItem{
+					Kind:  ClosedKindBlock,
+					TabId: parentORef.OID,
+					Block: snap,
+				})
+			}
+		}
+		ctx = ContextWithSkipCloseSnapshot(ctx)
+	}
 	if len(block.SubBlockIds) > 0 {
 		for _, subBlockId := range block.SubBlockIds {
 			err := DeleteBlock(ctx, subBlockId, recursive)
