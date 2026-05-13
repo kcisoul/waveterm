@@ -82,7 +82,12 @@ export class FilePathLinkProvider implements ILinkProvider {
         Promise.all(
             toCheck.map(async (c) => {
                 try {
-                    const info = await RpcApi.RemoteFileInfoCommand(TabRpcClient, c.resolvedPath, { timeout: 2000 });
+                    const uri = `wsh://local/${c.resolvedPath}`;
+                    const info = await RpcApi.FileInfoCommand(
+                        TabRpcClient,
+                        { info: { path: uri } },
+                        { timeout: 2000 }
+                    );
                     const exists = !info.notfound;
                     this.existsCache.set(c.resolvedPath, { exists, ts: Date.now() });
                     return exists ? c : null;
