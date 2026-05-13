@@ -173,7 +173,7 @@ export class TermViewModel implements ViewModel {
                 if (branch) {
                     rtn.push({
                         elemtype: "div",
-                        className: "!w-auto !justify-start gap-1 flex-nogrow",
+                        className: "!w-auto !justify-start gap-1 flex-nogrow min-w-0",
                         children: [
                             {
                                 elemtype: "iconbutton",
@@ -184,6 +184,7 @@ export class TermViewModel implements ViewModel {
                             {
                                 elemtype: "text",
                                 text: branch,
+                                className: "!max-w-[120px]",
                                 noGrow: true,
                             },
                         ],
