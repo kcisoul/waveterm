@@ -172,6 +172,12 @@ export class TermViewModel implements ViewModel {
                 const branch = get(this.gitBranchAtom);
                 if (branch) {
                     rtn.push({
+                        elemtype: "iconbutton",
+                        icon: "code-branch",
+                        title: "Git Branch",
+                        noAction: true,
+                    });
+                    rtn.push({
                         elemtype: "text",
                         text: branch,
                         noGrow: true,
